@@ -120,20 +120,17 @@ func envelopeFromBody(event *Event, dsn *Dsn, sentAt time.Time, body json.RawMes
 
 	// Envelope header
 	err := enc.Encode(struct {
-		EventID EventID           `json:"event_id"`
-		SentAt  time.Time         `json:"sent_at"`
-		Dsn     string            `json:"dsn"`
-		Sdk     map[string]string `json:"sdk"`
+		EventID EventID           `json:"event_id,omitempty"`
+		SentAt  *time.Time        `json:"sent_at,omitempty"`
+		Dsn     string            `json:"dsn,omitempty"`
+		Sdk     map[string]string `json:"sdk,omitempty"`
 		Trace   map[string]string `json:"trace,omitempty"`
 	}{
 		EventID: "",
-		SentAt:  sentAt,
-		Trace:   trace,
-		Dsn:     dsn.String(),
-		Sdk: map[string]string{
-			"name":    event.Sdk.Name,
-			"version": event.Sdk.Version,
-		},
+		SentAt:  nil,
+		Trace:   nil,
+		Dsn:     "",
+		Sdk:     nil,
 	})
 	if err != nil {
 		return nil, err
