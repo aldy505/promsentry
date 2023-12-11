@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -126,7 +126,7 @@ func envelopeFromBody(event *Event, dsn *Dsn, sentAt time.Time, body json.RawMes
 		Sdk     map[string]string `json:"sdk"`
 		Trace   map[string]string `json:"trace,omitempty"`
 	}{
-		EventID: event.EventID,
+		EventID: "",
 		SentAt:  sentAt,
 		Trace:   trace,
 		Dsn:     dsn.String(),
@@ -168,10 +168,9 @@ func getRequestFromEvent(event *Event, dsn *Dsn) (r *http.Request, err error) {
 			r.Header.Set("X-Sentry-Auth", auth)
 		}
 	}()
-	body := getRequestBodyFromEvent(event)
-	if body == nil {
-		return nil, errors.New("event could not be marshaled")
-	}
+
+	body := event.metrics
+
 	envelope, err := envelopeFromBody(event, dsn, time.Now(), body)
 	if err != nil {
 		return nil, err
@@ -596,8 +595,15 @@ func (noopTransport) SendEvent(event *Event) {
 	if err != nil {
 		return
 	}
+
 	body, _ := io.ReadAll(request.Body)
-	Logger.Println(string(body))
+	var s strings.Builder
+	s.WriteString(request.Method + " " + request.URL.String() + "\n")
+	for key, value := range request.Header {
+		s.WriteString(key + ": " + strings.Join(value, ", ") + "\n")
+	}
+	s.Write(body)
+	Logger.Println(s.String())
 	Logger.Println("Event dropped due to noopTransport usage.")
 }
 
