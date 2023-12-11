@@ -141,7 +141,8 @@ func envelopeFromBody(event *Event, dsn *Dsn, sentAt time.Time, body json.RawMes
 		return nil, err
 	}
 
-	b.Write(bytes.TrimPrefix(event.metrics, []byte("\n")))
+	b.Write(bytes.TrimSuffix(bytes.TrimPrefix(event.metrics, []byte("\n")), []byte("\n")))
+	b.WriteString("\n")
 
 	return &b, nil
 }
@@ -417,6 +418,10 @@ func (t *HTTPTransport) worker() {
 				Logger.Printf("There was an issue with sending an event: %v", err)
 				continue
 			}
+
+			body, _ := io.ReadAll(response.Body)
+			Logger.Printf("Response: %d\n%s\n", response.StatusCode, string(body))
+
 			t.mu.Lock()
 			t.limits.Merge(ratelimit.FromResponse(response))
 			t.mu.Unlock()
@@ -540,6 +545,10 @@ func (t *HTTPSyncTransport) SendEvent(event *Event) {
 		Logger.Printf("There was an issue with sending an event: %v", err)
 		return
 	}
+
+	body, _ := io.ReadAll(response.Body)
+	Logger.Printf("Response: %d\n%s\n", response.StatusCode, string(body))
+
 	t.mu.Lock()
 	t.limits.Merge(ratelimit.FromResponse(response))
 	t.mu.Unlock()
