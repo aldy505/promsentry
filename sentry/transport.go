@@ -127,7 +127,7 @@ func envelopeFromBody(event *Event, dsn *Dsn, sentAt time.Time, body json.RawMes
 		Trace   map[string]string `json:"trace,omitempty"`
 	}{
 		EventID: "",
-		SentAt:  time.Now().Format(time.RFC3339),
+		SentAt:  time.Now().UTC().Format(time.RFC3339),
 		Trace:   nil,
 		Dsn:     dsn.String(),
 		Sdk:     nil,
