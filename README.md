@@ -2,6 +2,10 @@
 
 Bring your Prometheus data to Sentry via DDM.
 
+Promsentry acts as a [Prometheus remote writer](https://prometheus.io/docs/concepts/remote_write_spec/) receiver (or a
+remote write server if you say), that ingest the data and push it into Sentry's DDM, basically just converting
+Prometheus' protobuf format into Sentry's accepted StatsD format.
+
 If you see this, then it's a work in progress. But, if you want to try stuff around:
 
 #### Without Sentry instance

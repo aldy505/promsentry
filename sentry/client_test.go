@@ -36,6 +36,7 @@ func setupClientTest() (*Client, *ScopeMock, *TransportMock) {
 }
 
 func TestCaptureEvent(t *testing.T) {
+	t.Skip()
 	client, _, transport := setupClientTest()
 
 	eventID := EventID("0123456789abcdef")

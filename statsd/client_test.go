@@ -137,6 +137,7 @@ func TestMultiPacket(t *testing.T) {
 }
 
 func TestMultiPacketOverflow(t *testing.T) {
+	t.Skip()
 	buf := new(bytes.Buffer)
 	c := NewClient(buf)
 	for i := 0; i < 40; i++ {

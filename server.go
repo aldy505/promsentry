@@ -2,14 +2,21 @@ package promsentry
 
 import (
 	"bytes"
+	"crypto/tls"
+	"log"
+	"net/http"
+	"time"
+
 	"github.com/aldy505/promsentry/sentry"
 	"github.com/aldy505/promsentry/statsd"
 	"github.com/prometheus/prometheus/storage/remote"
-	"net/http"
-	"time"
 )
 
-func NewServer() (*http.Server, error) {
+func NewServer(listenAddress string, tlsConfig *tls.Config) (*http.Server, error) {
+	if listenAddress == "" {
+		listenAddress = "127.0.0.1:3000"
+	}
+
 	router := http.NewServeMux()
 	router.HandleFunc("/api/v1/write", func(w http.ResponseWriter, r *http.Request) {
 		req, err := remote.DecodeWriteRequest(r.Body)
@@ -35,11 +42,17 @@ func NewServer() (*http.Server, error) {
 			}
 
 			for _, s := range timeseries.GetSamples() {
-				client.Gauge(name, int64(s.GetValue()), tags) // TODO: Properly handle error
+				err := client.Gauge(name, int64(s.GetValue()), tags)
+				if err != nil {
+					log.Println(err)
+				}
 			}
 
 			for _, e := range timeseries.GetExemplars() {
-				client.Duration(name, time.Duration(e.GetValue()), tags) // TODO: Properly handle error
+				err := client.Duration(name, time.Duration(e.GetValue()), tags)
+				if err != nil {
+					log.Println(err)
+				}
 				for _, l := range e.GetLabels() {
 					tags[l.GetName()] = l.GetValue()
 				}
@@ -47,11 +60,16 @@ func NewServer() (*http.Server, error) {
 
 			for _, hp := range timeseries.GetHistograms() {
 				h := remote.HistogramProtoToHistogram(hp)
-				client.Histogram(name, h.Count, tags) // TODO: Properly handle error
+				err := client.Histogram(name, h.Count, tags)
+				if err != nil {
+					log.Println(err)
+				}
 			}
 		}
 
-		client.Flush() // TODO: Properly handle error
+		if err := client.Flush(); err != nil {
+			log.Println(err)
+		}
 
 		metric := b.Bytes()
 		hub.CaptureMetric(metric)
@@ -60,13 +78,13 @@ func NewServer() (*http.Server, error) {
 	})
 
 	server := &http.Server{
-		Addr:              "127.0.0.1:3000", // TODO: Change me!
+		Addr:              listenAddress,
 		Handler:           router,
-		TLSConfig:         nil,
+		TLSConfig:         tlsConfig,
 		ReadTimeout:       0,
 		ReadHeaderTimeout: 0,
-		WriteTimeout:      0,
-		IdleTimeout:       0,
+		WriteTimeout:      time.Minute,
+		IdleTimeout:       time.Minute,
 	}
 
 	return server, nil

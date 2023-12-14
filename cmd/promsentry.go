@@ -16,39 +16,66 @@ package main
 
 import (
 	"context"
-	"github.com/aldy505/promsentry"
-	"github.com/aldy505/promsentry/sentry"
+	"crypto/tls"
+	"errors"
+	"flag"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
+
+	"github.com/aldy505/promsentry"
+	"github.com/aldy505/promsentry/sentry"
 )
 
 func main() {
-	sentry.Init(sentry.ClientOptions{
-		Dsn:           "",
-		Debug:         true, // TODO: Configure this
-		SampleRate:    1.0,
-		DebugWriter:   nil,
-		Transport:     nil,
-		ServerName:    "",
-		Release:       "",
-		Dist:          "",
-		Environment:   "",
-		HTTPClient:    nil,
-		HTTPTransport: nil,
-		HTTPProxy:     "",
-		HTTPSProxy:    "",
-		CaCerts:       nil,
-	})
+	var configurationFilePath string
+	flag.StringVar(&configurationFilePath, "config-file", "", "Path to configuration file (JSON, or YAML)")
+	flag.Parse()
+	if v, ok := os.LookupEnv("CONFIG_FILE_PATH"); ok {
+		configurationFilePath = v
+	}
 
-	server, err := promsentry.NewServer()
+	configuration, err := promsentry.ParseConfiguration(configurationFilePath)
 	if err != nil {
 		log.Fatalln(err)
+		return
+	}
+
+	err = sentry.Init(sentry.ClientOptions{
+		Dsn:        configuration.SentryDsn,
+		Debug:      configuration.Debug,
+		SampleRate: 1.0,
+		ServerName: "promsentry",
+	})
+	if err != nil {
+		log.Fatalln(err)
+		return
+	}
+
+	var tlsConfig *tls.Config = nil
+	if configuration.TLS.ServerCertificatePath != "" {
+		tlsConfig, err = promsentry.CreateTLSConfiguration(
+			configuration.TLS.ServerCertificatePath,
+			configuration.TLS.ServerKeyPath,
+			configuration.TLS.CertificateAuthorityPath,
+			configuration.TLS.ClientAuthenticationType)
+		if err != nil {
+			log.Fatalln(err)
+			return
+		}
+	}
+
+	server, err := promsentry.NewServer(configuration.ListenAddress, tlsConfig)
+	if err != nil {
+		log.Fatalln(err)
+		return
 	}
 
 	go func() {
+		log.Printf("Server starting on %s\n", server.Addr)
 		err := server.ListenAndServe()
-		if err != nil {
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Println(err)
 		}
 	}()
@@ -57,5 +84,8 @@ func main() {
 	signal.Notify(exitSignal, os.Interrupt)
 
 	<-exitSignal
-	server.Shutdown(context.Background()) // TODO: handle error
+	err = server.Shutdown(context.Background())
+	if err != nil {
+		log.Println(err)
+	}
 }

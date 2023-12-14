@@ -1,0 +1,27 @@
+name: Check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  ci:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.21.x
+
+      - name: Build
+        run: go build .
+
+      - name: Run coverage
+        run: go test -v -race -coverprofile=coverage.out -covermode=atomic -failfast ./...
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3

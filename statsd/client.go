@@ -28,6 +28,7 @@ import (
 	"io"
 	"math/rand"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -36,9 +37,10 @@ const defaultBufSize = 256
 // Client is statsd client representing a
 // connection to a statsd server.
 type Client struct {
-	buf    *bufio.Writer
-	m      sync.Mutex
-	prefix string
+	buf     *bufio.Writer
+	m       sync.Mutex
+	prefix  string
+	flushed atomic.Bool
 }
 
 func millisecond(d time.Duration) int {
@@ -135,6 +137,7 @@ func (c *Client) Unique(name string, value int, rate float64, tags map[string]st
 
 // Flush flushes writes any buffered data to the network.
 func (c *Client) Flush() error {
+	c.flushed.Store(true)
 	return c.buf.Flush()
 }
 
@@ -161,7 +164,7 @@ func (c *Client) send(stat string, rate float64, format string, args ...interfac
 		}
 	}
 
-	format = fmt.Sprintf("\n%s:%s", stat, format)
+	format = fmt.Sprintf("%s:%s", stat, format)
 
 	c.m.Lock()
 	defer c.m.Unlock()
@@ -171,11 +174,17 @@ func (c *Client) send(stat string, rate float64, format string, args ...interfac
 		if err := c.Flush(); err != nil {
 			return nil
 		}
+		c.flushed.Store(true)
 	}
 
 	// Buffer is not empty, start filling it
 	if c.buf.Buffered() > 0 {
-		format = fmt.Sprintf("%s", format)
+		format = fmt.Sprintf("\n%s", format)
+	}
+
+	if c.flushed.Load() {
+		format = fmt.Sprintf("\n%s", format)
+		c.flushed.Store(false)
 	}
 
 	_, err := fmt.Fprintf(c.buf, format, args...)
