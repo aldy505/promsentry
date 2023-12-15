@@ -73,10 +73,18 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("Server starting on %s\n", server.Addr)
-		err := server.ListenAndServe()
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Println(err)
+		if tlsConfig == nil {
+			log.Printf("Server starting on http://%s\n", server.Addr)
+			err := server.ListenAndServe()
+			if err != nil && !errors.Is(err, http.ErrServerClosed) {
+				log.Println(err)
+			}
+		} else {
+			log.Printf("Server starting on https://%s\n", server.Addr)
+			err := server.ListenAndServeTLS("", "")
+			if err != nil && !errors.Is(err, http.ErrServerClosed) {
+				log.Println(err)
+			}
 		}
 	}()
 
