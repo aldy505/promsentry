@@ -60,6 +60,7 @@ Refer to the schema and example values below. Every field is optional.
     },
     "debug": false
 }
+```
 
 ```yaml
 listen_address: "127.0.0.1:3000"
