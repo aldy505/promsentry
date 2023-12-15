@@ -18,6 +18,10 @@ func NewServer(listenAddress string, tlsConfig *tls.Config) (*http.Server, error
 	}
 
 	router := http.NewServeMux()
+	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Alive"))
+	})
 	router.HandleFunc("/api/v1/write", func(w http.ResponseWriter, r *http.Request) {
 		req, err := remote.DecodeWriteRequest(r.Body)
 		if err != nil {
